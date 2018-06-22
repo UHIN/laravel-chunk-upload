@@ -1,5 +1,5 @@
 {
-  "name": "UHIN/laravel-chunk-upload",
+  "name": "uhin/laravel-chunk-upload",
   "description": "Service for chunked upload with several js providers",
   "license": "MIT",
   "authors": [
