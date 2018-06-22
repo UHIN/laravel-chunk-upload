@@ -28,7 +28,7 @@ class ChunkUploadServiceProvider extends ServiceProvider
         // Run only if schedule is enabled
         if (Arr::get($scheduleConfig, "enabled", false) === true) {
             // Wait until the app is fully booted
-            $this->app->booted(function () use ($scheduleConfig) {
+          //  $this->app->booted(function () use ($scheduleConfig) {
 
                 // Get the scheduler instance
                 /** @var Schedule $schedule */
@@ -36,7 +36,7 @@ class ChunkUploadServiceProvider extends ServiceProvider
 
                 // Register the clear chunks with custom schedule
                 $schedule->command('uploads:clear')->cron(Arr::get($scheduleConfig, "cron", "* * * * *"));
-            });
+        //   });
         }
     }
 
@@ -102,7 +102,7 @@ class ChunkUploadServiceProvider extends ServiceProvider
 
         // Publish the config
         $this->publishes([
-            $configPath => config_path($configFileName),
+            $configPath => app()->basePath() . '/config' . ($configFileName ? '/' . $configFileName : $configFileName),
         ]);
 
         // Merge the default config to prevent any crash or unfilled configs
