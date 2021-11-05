@@ -2,29 +2,32 @@
 
 namespace Pion\Laravel\ChunkUpload\Save;
 
+use Illuminate\Http\UploadedFile;
 use Pion\Laravel\ChunkUpload\Config\AbstractConfig;
 use Pion\Laravel\ChunkUpload\Exceptions\ChunkSaveException;
 use Pion\Laravel\ChunkUpload\FileMerger;
 use Pion\Laravel\ChunkUpload\Handler\AbstractHandler;
-use Illuminate\Http\UploadedFile;
 use Pion\Laravel\ChunkUpload\Storage\ChunkStorage;
+use Symfony\Component\HttpKernel\Kernel as SymfonyKernel;
 
 class ChunkSave extends AbstractSave
 {
     /**
      * Is this the final chunk?
+     *
      * @var bool
      */
     protected $isLastChunk;
 
     /**
-     * What is the chunk file name
+     * What is the chunk file name.
+     *
      * @var string
      */
     protected $chunkFileName;
 
     /**
-     * The chunk file path
+     * The chunk file path.
      *
      * @var string
      */
@@ -64,9 +67,8 @@ class ChunkSave extends AbstractSave
         $this->handleChunk();
     }
 
-
     /**
-     * Checks if the file upload is finished (last chunk)
+     * Checks if the file upload is finished (last chunk).
      *
      * @return bool
      */
@@ -76,7 +78,7 @@ class ChunkSave extends AbstractSave
     }
 
     /**
-     * Returns the chunk file path in the current disk instance
+     * Returns the chunk file path in the current disk instance.
      *
      * @param bool $absolutePath
      *
@@ -88,7 +90,8 @@ class ChunkSave extends AbstractSave
     }
 
     /**
-     * Returns the full file path
+     * Returns the full file path.
+     *
      * @return string
      */
     public function getChunkFullFilePath()
@@ -97,9 +100,9 @@ class ChunkSave extends AbstractSave
     }
 
     /**
-     * Returns the folder for the cunks in the storage path on current disk instance
+     * Returns the folder for the cunks in the storage path on current disk instance.
      *
-     * @param boolean $absolutePath
+     * @param bool $absolutePath
      *
      * @return string
      */
@@ -113,14 +116,14 @@ class ChunkSave extends AbstractSave
 
         $paths[] = $this->chunkStorage()->directory();
 
-        return implode("", $paths);
+        return implode('', $paths);
     }
 
     /**
      * Returns the uploaded file if the chunk if is not completed, otherwise passes the
-     * final chunk file
+     * final chunk file.
      *
-     * @return null|UploadedFile
+     * @return UploadedFile|null
      */
     public function getFile()
     {
@@ -130,7 +133,6 @@ class ChunkSave extends AbstractSave
 
         return parent::getFile();
     }
-
 
     /**
      * @deprecated
@@ -142,7 +144,7 @@ class ChunkSave extends AbstractSave
     }
 
     /**
-     * Appends the new uploaded data to the final file
+     * Appends the new uploaded data to the final file.
      *
      * @throws ChunkSaveException
      */
@@ -157,7 +159,8 @@ class ChunkSave extends AbstractSave
     }
 
     /**
-     * Checks if the current chunk is last
+     * Checks if the current chunk is last.
+     *
      * @return $this
      */
     protected function tryToBuildFullFileFromChunks()
@@ -166,15 +169,17 @@ class ChunkSave extends AbstractSave
         if ($this->isLastChunk) {
             $this->buildFullFileFromChunks();
         }
+
         return $this;
     }
 
     /**
-     * Appends the current uploaded file to chunk file
+     * Appends the current uploaded file to chunk file.
      *
      * @param string $file Relative path to chunk
      *
      * @return $this
+     *
      * @throws ChunkSaveException
      */
     protected function handleChunkFile($file)
@@ -193,7 +198,7 @@ class ChunkSave extends AbstractSave
     }
 
     /**
-     * Builds the final file
+     * Builds the final file.
      */
     protected function buildFullFileFromChunks()
     {
@@ -205,7 +210,7 @@ class ChunkSave extends AbstractSave
     }
 
     /**
-     * Creates the UploadedFile object for given chunk file
+     * Creates the UploadedFile object for given chunk file.
      *
      * @param string $finalPath
      *
@@ -213,20 +218,25 @@ class ChunkSave extends AbstractSave
      */
     protected function createFullChunkFile($finalPath)
     {
-        return new UploadedFile(
-            $finalPath,
-            $this->file->getClientOriginalName(),
-            $this->file->getClientMimeType(),
-            filesize($finalPath),
-            $this->file->getError(),
-            // we must pass the true as test to force the upload file
-            // to use a standard copy method, not move uploaded file
-            true
-        );
+        // We must pass the true as test to force the upload file
+        // to use a standard copy method, not move uploaded file
+        $test = true;
+        $clientOriginalName = $this->file->getClientOriginalName();
+        $clientMimeType = $this->file->getClientMimeType();
+        $error = $this->file->getError();
+
+        // Passing a size as 4th (filesize) argument to the constructor is deprecated since Symfony 4.1.
+        if (SymfonyKernel::VERSION_ID >= 40100) {
+            return new UploadedFile($finalPath, $clientOriginalName, $clientMimeType, $error, $test);
+        }
+
+        $fileSize = filesize($finalPath);
+
+        return new UploadedFile($finalPath, $clientOriginalName, $clientMimeType, $fileSize, $error, $test);
     }
 
     /**
-     * Returns the current chunk storage
+     * Returns the current chunk storage.
      *
      * @return ChunkStorage
      */
@@ -236,7 +246,7 @@ class ChunkSave extends AbstractSave
     }
 
     /**
-     * Returns the disk adapter for the chunk
+     * Returns the disk adapter for the chunk.
      *
      * @return \Illuminate\Filesystem\FilesystemAdapter
      */
@@ -246,7 +256,7 @@ class ChunkSave extends AbstractSave
     }
 
     /**
-     * Crates the chunks folder if doesn't exists. Uses recursive create
+     * Crates the chunks folder if doesn't exists. Uses recursive create.
      */
     protected function createChunksFolderIfNeeded()
     {
