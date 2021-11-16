@@ -3,30 +3,34 @@
 namespace Pion\Laravel\ChunkUpload\Save;
 
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Str;
+use Pion\Laravel\ChunkUpload\ChunkFile;
 use Pion\Laravel\ChunkUpload\Config\AbstractConfig;
 use Pion\Laravel\ChunkUpload\Exceptions\ChunkSaveException;
 use Pion\Laravel\ChunkUpload\Exceptions\MissingChunkFilesException;
 use Pion\Laravel\ChunkUpload\FileMerger;
 use Pion\Laravel\ChunkUpload\Handler\AbstractHandler;
-use Pion\Laravel\ChunkUpload\ChunkFile;
 use Pion\Laravel\ChunkUpload\Handler\Traits\HandleParallelUploadTrait;
 use Pion\Laravel\ChunkUpload\Storage\ChunkStorage;
 
 /**
- * Class ParallelSave
+ * Class ParallelSave.
  *
  * @method HandleParallelUploadTrait|AbstractHandler handler()
- *
- * @package Pion\Laravel\ChunkUpload\Save
  */
 class ParallelSave extends ChunkSave
 {
-    protected $totalChunks;
     /**
-     * Stored on construct - the file is moved and isValid will return false
+     * Stored on construct - the file is moved and isValid will return false.
+     *
      * @var bool
      */
     protected $isFileValid;
+
+    /**
+     * @var array
+     */
+    protected $foundChunks = [];
 
     /**
      * ParallelSave constructor.
@@ -43,8 +47,7 @@ class ParallelSave extends ChunkSave
         AbstractHandler $handler,
         ChunkStorage $chunkStorage,
         AbstractConfig $config
-    )
-    {
+    ) {
         // Get current file validation - the file instance is changed
         $this->isFileValid = $file->isValid();
 
@@ -57,9 +60,8 @@ class ParallelSave extends ChunkSave
         return $this->isFileValid;
     }
 
-
     /**
-     * Moves the uploaded chunk file to separate chunk file for merging
+     * Moves the uploaded chunk file to separate chunk file for merging.
      *
      * @param string $file Relative path to chunk
      *
@@ -69,26 +71,32 @@ class ParallelSave extends ChunkSave
     {
         // Move the uploaded file to chunk folder
         $this->file->move($this->getChunkDirectory(true), $this->chunkFileName);
+
+        // Found current number of chunks to determine if we have all chunks (we cant use the
+        // index because order of chunks are different.
+        $this->foundChunks = $this->getSavedChunksFiles()->all();
+
+        $percentage = floor((count($this->foundChunks)) / $this->handler()->getTotalChunks() * 100);
+        // We need to update the handler with correct percentage
+        $this->handler()->setPercentageDone($percentage);
+        $this->isLastChunk = $percentage >= 100;
+
         return $this;
     }
 
-    protected function tryToBuildFullFileFromChunks()
-    {
-        return parent::tryToBuildFullFileFromChunks();
-    }
-
     /**
-     * Searches for all chunk files
+     * Searches for all chunk files.
      *
      * @return \Illuminate\Support\Collection
      */
     protected function getSavedChunksFiles()
     {
         $chunkFileName = preg_replace(
-            "/\.[\d]+\.".ChunkStorage::CHUNK_EXTENSION."$/", '', $this->handler()->getChunkFileName()
+            "/\.[\d]+\.".ChunkStorage::CHUNK_EXTENSION.'$/', '', $this->handler()->getChunkFileName()
         );
+
         return $this->chunkStorage->files(function ($file) use ($chunkFileName) {
-            return str_contains($file, $chunkFileName) === false;
+            return false === Str::contains($file, $chunkFileName);
         });
     }
 
@@ -98,9 +106,9 @@ class ParallelSave extends ChunkSave
      */
     protected function buildFullFileFromChunks()
     {
-        $chunkFiles = $this->getSavedChunksFiles()->all();
+        $chunkFiles = $this->foundChunks;
 
-        if (count($chunkFiles) === 0) {
+        if (0 === count($chunkFiles)) {
             throw new MissingChunkFilesException();
         }
 
@@ -109,7 +117,9 @@ class ParallelSave extends ChunkSave
 
         // Get chunk files that matches the current chunk file name, also sort the chunk
         // files.
-        $finalFilePath = $this->getChunkDirectory(true).'./'.$this->handler()->createChunkFileName();
+        $rootDirectory = $this->getChunkDirectory(true);
+        $finalFilePath = $rootDirectory.'./'.$this->handler()->createChunkFileName();
+
         // Delete the file if exists
         if (file_exists($finalFilePath)) {
             @unlink($finalFilePath);
