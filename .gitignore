@@ -5,3 +5,5 @@ composer.lock
 /build
 .phpunit.result.cache
 .php_cs.cache
+/.phpunit.cache
+phpunit.xml.dist.bak
